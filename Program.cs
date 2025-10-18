@@ -56,15 +56,12 @@ float lastBrethValue = 0;
 // Syncronisicity timer. Computed peroticly
 float nextSyncCheck = 0;
 const float syncCheckPeriod = .125f;
-
-const float lowSync = .05f;
-const float midSync = .02f;
-const float highSync = .001f;
-
+float lowSync = .05f;
+float midSync = .02f;
+float highSync = .001f;
 const int lowSyncScore = 1;
 const int midSyncScore = 5;
 const int highSyncScore = 10;
-
 int syncScore = 0;
 
 
@@ -73,6 +70,8 @@ if (File.Exists("default.config")) Load("default.config");
 while (!WindowShouldClose())
 {
 
+
+
     if (GetTime() > nextSyncCheck)
     {
         nextSyncCheck = (float)(GetTime() + syncCheckPeriod);
@@ -80,21 +79,26 @@ while (!WindowShouldClose())
         if (mode == Mode.ProgramControl)
         {
             float wantedVsNowDiff = MathF.Abs(desiredBreath - breth);
+            int dir = Math.Sign(desiredBreath - breth);
 
             if (highSync > wantedVsNowDiff)
             {
-                syncScore += highSyncScore;
+                syncScore += highSyncScore * dir;
             }
             else if (midSync > wantedVsNowDiff)
             {
-                syncScore += midSyncScore;
+                syncScore += midSyncScore * dir;
             }
             else if (lowSync > wantedVsNowDiff)
             {
-                syncScore += lowSyncScore;
+                syncScore += lowSyncScore * dir;
             }
+
+            if (0 > syncScore) syncScore = 0;
+
         }
     }
+    string syncDebug = $"{(desiredBreath - breth):00.0000}";
 
 
     if (GetTime() > nextBrethDirectionGuessTime)
@@ -228,17 +232,7 @@ while (!WindowShouldClose())
     Vector2 center = new Vector2(GetScreenWidth() * .5f, GetScreenHeight() * .5f);
     BeginDrawing();
     ClearBackground(BLACK);
-    int i = 0;
-    if (showConfig)
-    {
-        breth = GuiSlider(new Rectangle(0, 32 * i++, 400, 32), "", $"now {breth:.0000}", breth, 0, 1);
-        minBreth = GuiSlider(new Rectangle(0, 32 * i++, 400, 32), "", $"min {minBreth:.0000}", minBreth, 0, 1);
-        maxBreth = GuiSlider(new Rectangle(0, 32 * i++, 400, 32), "", $"max {maxBreth:.0000}", maxBreth, 0, 1);
-        desiredBreath = GuiSlider(new Rectangle(0, 32 * i++, 400, 32), "", $"des {desiredBreath:.0000}", desiredBreath, 0, 1);
-        sizeMul = GuiSlider(new Rectangle(0, 32 * i++, 400, 32), "", $"siz {sizeMul:.0000}", sizeMul, 1, 1000);
-        inHoldDwellTime = GuiSlider(new Rectangle(0, 32 * i++, 400, 32), "", $"ihdt {inHoldDwellTime:.0000}", inHoldDwellTime, 0, 15);
-        outHoldDwellTime = GuiSlider(new Rectangle(0, 32 * i++, 400, 32), "", $"ihdt {outHoldDwellTime:.0000}", outHoldDwellTime, 0, 15);
-    }
+
 
 
     // DrawCircleV(center, max_breth * mul, DARKGREEN);
@@ -248,12 +242,38 @@ while (!WindowShouldClose())
     DrawRingLines(center, (maxBreth * sizeMul), (maxBreth * sizeMul) + 1, 0, 360, 300, LIGHTGRAY with { a = 128 });
     DrawRingLines(center, (minBreth * sizeMul), (minBreth * sizeMul) + 1, 0, 360, 300, LIGHTGRAY with { a = 128 });
 
-    DrawText($"{mode} {desiredBreathingDirection}\n{guessdebug}", 0, GetScreenHeight() - (24 * 5), 24, GREEN);
+    DrawText($"{mode} {desiredBreathingDirection}\n{guessdebug}\n{syncDebug}", 0, GetScreenHeight() - (24 * 5), 24, GREEN);
 
 
     string syncScoreText = $"{syncScore:000000}";
-    var syncScoreSize = MeasureTextEx(GetFontDefault(), syncScoreText, 12, 1);
     DrawText(syncScoreText, GetScreenWidth() - 100, 0, 12, YELLOW);
+
+
+
+    if (showConfig)
+    {
+        int i = 0;
+        GuiLabel(new Rectangle(0, 32 * i++, 400, 32), "Tidal Breath (Normlised)");
+        breth = GuiSlider(new Rectangle(0, 32 * i++, 400, 32), "", $"now {breth:.0000}", breth, 0, 1);
+        minBreth = GuiSlider(new Rectangle(0, 32 * i++, 400, 32), "", $"min {minBreth:.0000}", minBreth, 0, 1);
+        maxBreth = GuiSlider(new Rectangle(0, 32 * i++, 400, 32), "", $"max {maxBreth:.0000}", maxBreth, 0, 1);
+        desiredBreath = GuiSlider(new Rectangle(0, 32 * i++, 400, 32), "", $"des {desiredBreath:.0000}", desiredBreath, 0, 1);
+        GuiLabel(new Rectangle(0, 32 * i++, 400, 32), "Sizing");
+        sizeMul = GuiSlider(new Rectangle(0, 32 * i++, 400, 32), "", $"siz {sizeMul:.0000}", sizeMul, 1, 1000);
+
+        GuiLabel(new Rectangle(0, 32 * i++, 400, 32), "Box Breathing Params");
+        inHoldDwellTime = GuiSlider(new Rectangle(0, 32 * i++, 400, 32), "", $"ihdt {inHoldDwellTime:.0000}", inHoldDwellTime, 0, 15);
+        outHoldDwellTime = GuiSlider(new Rectangle(0, 32 * i++, 400, 32), "", $"ihdt {outHoldDwellTime:.0000}", outHoldDwellTime, 0, 15);
+
+        GuiLabel(new Rectangle(0, 32 * i++, 400, 32), "sync totaling params`");
+        lowSync = GuiSlider(new Rectangle(0, 32 * i, 400 / 3, 32), "", "", lowSync, 0, .1f);
+        midSync = GuiSlider(new Rectangle((400 / 3) * 1, 32 * i, 400 / 3, 32), "", "", midSync, 0, .1f);
+        highSync = GuiSlider(new Rectangle((400 / 3) * 2, 32 * i, 400 / 3, 32), "",
+        $"L M H {lowSync:0.000} {midSync:0.000} {highSync:0.000}", highSync, 0, .1f);
+
+        i += 1;
+
+    }
 
 
     EndDrawing();
@@ -269,11 +289,14 @@ void Save(string path)
 {
     var config = new Config
     {
-        Version = 1,
+        Version = 2,
         InHoldDwellTime = inHoldDwellTime,
         OutHoldDwellTime = outHoldDwellTime,
         MinBreth = minBreth,
-        MaxBreth = maxBreth
+        MaxBreth = maxBreth,
+        LowSync = lowSync,
+        MidSync = midSync,
+        HighSync = highSync
     };
 
     var cfg = JsonConvert.SerializeObject(config);
@@ -286,10 +309,15 @@ void Load(string path)
     var tf = File.ReadAllText(path);
     var cfg = JsonConvert.DeserializeObject<Config>(tf);
 
+    if (cfg.Version != 2) return;
+
     inHoldDwellTime = cfg.InHoldDwellTime;
     outHoldDwellTime = cfg.OutHoldDwellTime;
     minBreth = cfg.MinBreth;
     maxBreth = cfg.MaxBreth;
+    lowSync = cfg.LowSync;
+    midSync = cfg.MidSync;
+    highSync = cfg.HighSync;
 }
 
 enum BreathingDirection { Hold, In, InHold, Out, OutHold }
@@ -304,5 +332,5 @@ enum Mode
 class Config
 {
     [JsonProperty] public int Version;
-    [JsonProperty] public float InHoldDwellTime, OutHoldDwellTime, MinBreth, MaxBreth;
+    [JsonProperty] public float InHoldDwellTime, OutHoldDwellTime, MinBreth, MaxBreth, LowSync, MidSync, HighSync;
 }
