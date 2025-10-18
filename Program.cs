@@ -50,14 +50,52 @@ float directionGuess = 0; // 0 = no idea -1 = out +1 = in
 float nextBrethDirectionGuessTime = 0;
 int guessCount = 0;
 int determinAtThisManyGuesses = 5;
-
-
 float lastBrethValue = 0;
+
+
+// Syncronisicity timer. Computed peroticly
+float nextSyncCheck = 0;
+const float syncCheckPeriod = .125f;
+
+const float lowSync = .05f;
+const float midSync = .02f;
+const float highSync = .001f;
+
+const int lowSyncScore = 1;
+const int midSyncScore = 5;
+const int highSyncScore = 10;
+
+int syncScore = 0;
+
 
 if (File.Exists("default.config")) Load("default.config");
 
 while (!WindowShouldClose())
 {
+
+    if (GetTime() > nextSyncCheck)
+    {
+        nextSyncCheck = (float)(GetTime() + syncCheckPeriod);
+
+        if (mode == Mode.ProgramControl)
+        {
+            float wantedVsNowDiff = MathF.Abs(desiredBreath - breth);
+
+            if (highSync > wantedVsNowDiff)
+            {
+                syncScore += highSyncScore;
+            }
+            else if (midSync > wantedVsNowDiff)
+            {
+                syncScore += midSyncScore;
+            }
+            else if (lowSync > wantedVsNowDiff)
+            {
+                syncScore += lowSyncScore;
+            }
+        }
+    }
+
 
     if (GetTime() > nextBrethDirectionGuessTime)
     {
@@ -192,16 +230,16 @@ while (!WindowShouldClose())
     ClearBackground(BLACK);
     int i = 0;
     if (showConfig)
-    {   
-    breth = GuiSlider(new Rectangle(0, 32 * i++, 400, 32), "", $"now {breth:.0000}", breth, 0, 1);
-    minBreth = GuiSlider(new Rectangle(0, 32 * i++, 400, 32), "", $"min {minBreth:.0000}", minBreth, 0, 1);
-    maxBreth = GuiSlider(new Rectangle(0, 32 * i++, 400, 32), "", $"max {maxBreth:.0000}", maxBreth, 0, 1);
-    desiredBreath = GuiSlider(new Rectangle(0, 32 * i++, 400, 32), "", $"des {desiredBreath:.0000}", desiredBreath, 0, 1);
-    sizeMul = GuiSlider(new Rectangle(0, 32 * i++, 400, 32), "", $"siz {sizeMul:.0000}", sizeMul, 1, 1000);
-    inHoldDwellTime = GuiSlider(new Rectangle(0, 32 * i++, 400, 32), "", $"ihdt {inHoldDwellTime:.0000}", inHoldDwellTime, 0, 15);
-    outHoldDwellTime = GuiSlider(new Rectangle(0, 32 * i++, 400, 32), "", $"ihdt {outHoldDwellTime:.0000}", outHoldDwellTime, 0, 15);
+    {
+        breth = GuiSlider(new Rectangle(0, 32 * i++, 400, 32), "", $"now {breth:.0000}", breth, 0, 1);
+        minBreth = GuiSlider(new Rectangle(0, 32 * i++, 400, 32), "", $"min {minBreth:.0000}", minBreth, 0, 1);
+        maxBreth = GuiSlider(new Rectangle(0, 32 * i++, 400, 32), "", $"max {maxBreth:.0000}", maxBreth, 0, 1);
+        desiredBreath = GuiSlider(new Rectangle(0, 32 * i++, 400, 32), "", $"des {desiredBreath:.0000}", desiredBreath, 0, 1);
+        sizeMul = GuiSlider(new Rectangle(0, 32 * i++, 400, 32), "", $"siz {sizeMul:.0000}", sizeMul, 1, 1000);
+        inHoldDwellTime = GuiSlider(new Rectangle(0, 32 * i++, 400, 32), "", $"ihdt {inHoldDwellTime:.0000}", inHoldDwellTime, 0, 15);
+        outHoldDwellTime = GuiSlider(new Rectangle(0, 32 * i++, 400, 32), "", $"ihdt {outHoldDwellTime:.0000}", outHoldDwellTime, 0, 15);
     }
-    
+
 
     // DrawCircleV(center, max_breth * mul, DARKGREEN);
     DrawCircleV(center, innerCircleAmount * sizeMul, YELLOW);
@@ -211,6 +249,12 @@ while (!WindowShouldClose())
     DrawRingLines(center, (minBreth * sizeMul), (minBreth * sizeMul) + 1, 0, 360, 300, LIGHTGRAY with { a = 128 });
 
     DrawText($"{mode} {desiredBreathingDirection}\n{guessdebug}", 0, GetScreenHeight() - (24 * 5), 24, GREEN);
+
+
+    string syncScoreText = $"{syncScore:000000}";
+    var syncScoreSize = MeasureTextEx(GetFontDefault(), syncScoreText, 12, 1);
+    DrawText(syncScoreText, GetScreenWidth() - 100, 0, 12, YELLOW);
+
 
     EndDrawing();
 }
