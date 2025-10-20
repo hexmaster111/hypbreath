@@ -25,6 +25,7 @@ public class RespirationDataBridge
     public float Flow { get; set; }
     public int Raw { get; set; }
 
+    public bool Connected => Port != null && Port.IsOpen;
 
     public SerialPort Port;
     public Thread Reader;
