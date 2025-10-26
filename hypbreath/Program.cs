@@ -10,6 +10,7 @@ using static Raylib_CsLo.RayMath;
 using Rectangle = Raylib_CsLo.Rectangle;
 
 
+
 try
 {
     RespirationDataBridge.Instance.Connect("/dev/ttyUSB0");
@@ -18,6 +19,17 @@ catch (Exception ex)
 {
     Console.WriteLine($"RespirationDataBridge Connect Error: {ex}");
 }
+
+
+try
+{
+    HeartRateDataBridge.Instance.Connect("/dev/ttyACM0");
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"HeartRateDataBridge Connect Error: {ex}");
+}
+
 
 
 SetConfigFlags(ConfigFlags.FLAG_WINDOW_RESIZABLE);
@@ -91,6 +103,8 @@ while (!WindowShouldClose())
             breathingVolume = RespirationDataBridge.Instance.Volume;
         }
     }
+
+    if (maxBreth > 1) { maxBreth = 1; }
 
 
     if (GetTime() > nextSyncCheck)
@@ -308,11 +322,32 @@ while (!WindowShouldClose())
     if (showHardwareStatus)
     {
         int i = 0;
+
+        GuiLabel(new Rectangle(0, 32 * i++, 400, 32), "Lungs");
         GuiSlider(new Rectangle(0, 32 * i++, 400, 32), "", $"{RespirationDataBridge.Instance.Raw}", RespirationDataBridge.Instance.Raw, 0, 60000);
         GuiSlider(new Rectangle(0, 32 * i++, 400, 32), "", $"{RespirationDataBridge.Instance.Volume:0.00}", RespirationDataBridge.Instance.Volume, 0, 15);
         GuiSlider(new Rectangle(0, 32 * i++, 400, 32), "", $"{RespirationDataBridge.Instance.Flow:0.00}", RespirationDataBridge.Instance.Flow, -20, 20);
 
+        GuiLabel(new Rectangle(0, 32 * i++, 400, 32), "Heart");
+        GuiSlider(new Rectangle(0, 32 * i++, 400, 32), "", $"Red {HeartRateDataBridge.Instance.Red}",
+            HeartRateDataBridge.Instance.Red, HeartRateDataBridge.Instance.RedAvgMin, HeartRateDataBridge.Instance.RedAvgMax);
+
+
+
+        GuiSlider(new Rectangle(0, 32 * i++, 400, 32), "", $"IR  {HeartRateDataBridge.Instance.Ir}",
+            HeartRateDataBridge.Instance.Ir, HeartRateDataBridge.Instance.IrAvgMin, HeartRateDataBridge.Instance.IrAvgMax);
+
+        GuiGraph(new Rectangle(0, 32 * i, 400, 64), HeartRateDataBridge.Instance.IrHistory, PURPLE);
+        GuiGraph(new Rectangle(0, 32 * i++, 400, 64), HeartRateDataBridge.Instance.RedHistory, RED);
+
+        i++;
+
+        GuiSlider(new Rectangle(0, 32 * i++, 400, 32), "", $"{HeartRateDataBridge.Instance.HeartRate}",
+            HeartRateDataBridge.Instance.HeartRate, 0, 100);
+
+
     }
+
 
 
     EndDrawing();
@@ -322,6 +357,40 @@ while (!WindowShouldClose())
 CloseWindow();
 Save("default.config");
 
+
+static void GuiGraph(Rectangle sz, float[] data, Color color)
+{
+    float center = data.Average();
+    float low = data.Min();
+    float high = data.Max();
+
+
+    DrawRectangleLinesEx(sz, 2, WHITE);
+
+
+    Vector2 last = new();
+
+    for (int i = 0; i < data.Length; i++)
+    {
+        var pt = data[i];
+        var px = Remap(i, 0, data.Length, sz.x, sz.x + sz.width);
+        var py = Remap(pt, low, high, sz.y, sz.y + sz.height);
+
+        Vector2 now = new(px, py);
+
+        if (last != Vector2.Zero)
+        {
+            DrawLineV(now, last, color);
+        }
+
+        last = now;
+        DrawPixel((int)px, (int)py, color);
+
+
+    }
+
+
+}
 
 
 void Save(string path)
